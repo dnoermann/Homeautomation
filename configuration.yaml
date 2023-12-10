@@ -1,0 +1,151 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+sensor:
+ - platform: template
+   sensors:
+    cop_wp:
+      friendly_name: "COP/AZ Live"
+      unit_of_measurement: 'AZ'
+      #value_template: "{{ states("sensor.mbusthermalpower") |float / states("sensor.smart_meter_ts_65a_3_wirkleistung_3") | float * -1 }}"
+      #value_template: "{{ states('sensor.mbusthermalpower') |float / states('sensor.smart_meter_ts_65a_3_wirkleistung_3') | float * -1 }}"
+      value_template: "{{ min( (states('sensor.mbusthermalpower') |float  / (states('sensor.smart_meter_ts_65a_3_wirkleistung_3')|float  * -1)) , 8) |round(2) }}"
+      #value_template: "{{ min( ((states('sensor.mbusthermalpower') )),8) | round(2) }}"
+
+ - platform: template
+   sensors:
+    flow_liter:
+        friendly_name: "Mbus Flow"
+        unit_of_measurement: 'L/min'
+        value_template: "{{ states('sensor.mbusflow') |float /60 |round(2) }}"
+
+ - platform: statistics
+   name: "Outdoor Ambient last 24 hours"
+   entity_id: sensor.panasonic_heat_pump_main_outside_temp
+   state_characteristic: mean
+   max_age:
+    hours: 24
+
+ - platform: statistics
+   name: "Outdoor Ambient this Month"
+   entity_id: sensor.panasonic_heat_pump_main_outside_temp
+   state_characteristic: mean
+   max_age:
+    days: 31
+
+ - platform: statistics
+   name: "Pana ThermalPower last 24 hours"
+   entity_id: sensor.mbusthermalpower
+   state_characteristic: mean
+   max_age:
+    hours: 24
+
+ - platform: statistics
+   name: "Pana ThermalPower this Month"
+   entity_id: sensor.mbusthermalpower
+   state_characteristic: mean
+   max_age:
+    days: 31
+
+
+ - platform: statistics
+   name: "Pana Hex Out last 24 hours"
+   entity_id: sensor.panasonic_heat_pump_main_main_hex_outlet_temp
+   state_characteristic: mean
+   max_age:
+    hours: 24
+
+# - platform: statistics
+#   name: "Pana -7 Outdoor Temp"
+#   entity_id: 
+#   state_characteristic: mean
+#   max_age:
+#    hours: 24   
+    
+ - platform: average
+   name: "Average Outdoor Temp 3/4.12"
+   entities:
+     - sensor.panasonic_heat_pump_main_outside_temp
+   start: "{{ now().replace(hour=20, minute=0, second=0, day=3) }}"
+   end: "{{ now().replace(hour=20, minute=0, second=0, day=4) }}"
+#   #duration:
+#   #  hours: 8    
+
+
+ - platform: history_stats
+   name: "Pana Defrosting Count Today"
+   entity_id: switch.panasonic_heat_pump_main_defrosting_state
+   state: "on"
+   type: count
+   start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+   end: "{{ now() }}"
+
+ - platform: history_stats
+   name: "Pana Defrosting Count this Month"
+   entity_id: switch.panasonic_heat_pump_main_defrosting_state
+   state: "on"
+   type: count
+   start: "{{ now().replace(hour=0, minute=0, second=0, day=1) }}"
+   end: "{{ now() }}"
+
+
+
+
+influxdb:
+    username: hainfluxuser
+    password: hainfluxpwd
+    tags:
+        source: HA
+    tags_attributes:
+     - friendly_name
+    default_measurement: state
+    exclude:
+        entities:
+         - weather.home
+        domains:
+         - person
+    include:
+        domains:
+         - sensor
+         - binary_sensor
+         
+
+# Example configuration.yaml entry
+mqtt:
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/Meter"
+      name: "MbusMeter"
+      unit_of_measurement: "kWh"
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/ThermalPower"
+      name: "MbusThermalPower"
+      unit_of_measurement: "W"
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/Flow"
+      name: "MbusFlow"
+      unit_of_measurement: "m^3/h"
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/Temp_VL"
+      name: "MbusTemp_VL"
+      unit_of_measurement: "°C"
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/Temp_RL"
+      name: "MbusTemp_RL"
+      unit_of_measurement: "°C"
+  - sensor:
+      state_topic: "panasonic_heat_pump/Mbus/Temp_Diff"
+      name: "MbusTemp_Diff"
+      unit_of_measurement: "°C/100"
+    
+
+
+
+
